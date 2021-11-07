@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 
 const OFFSET = 14;
 const WIDTH = 8;
@@ -6,7 +7,9 @@ const HEIGHT = 5;
 const ARROW_WIDTH = 1;
 const LINE_WIDTH = 0.2;
 
-let scene, camera, renderer;
+const clock = new THREE.Clock();
+
+let scene, camera, renderer, labelRenderer;
 let root;
 
 function init() {
@@ -19,31 +22,64 @@ function init() {
 
     root = new THREE.Group();
 
-    const l = link();
+    const l = link("42");
+    const l2 = link("15");
     root.add(l);
+    root.add(l2);
+    l2.position.set(OFFSET, 0, 0);
+
     scene.add(root);
 
     renderer = new THREE.WebGLRenderer();
-    renderer.setPixelRatio( window.devicePixelRatio );
+    renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
-    document.getElementById( 'container' ).appendChild( renderer.domElement );
+    document.getElementById('container').appendChild(renderer.domElement);
+
+    labelRenderer = new CSS2DRenderer();
+    labelRenderer.setSize(window.innerWidth, window.innerHeight);
+    labelRenderer.domElement.style.position = 'absolute';
+    labelRenderer.domElement.style.top = '0px';
+    document.getElementById('container').appendChild(labelRenderer.domElement);
 
     window.addEventListener('resize', onWindowResize);
-    renderer.render(scene, camera);
 }
 
-function link() {
+function animate() {
+    requestAnimationFrame(animate);
+    const elapsed = clock.getElapsedTime();
+    root.position.set(Math.sin(elapsed) * 5, 0, 0);
+
+    renderer.render(scene, camera);
+    labelRenderer.render(scene, camera);
+}
+
+function link(value) {
     const link = new THREE.Group();
-    link.add(node());
-    link.add(arrow());
+    link.add(node(value));
+
+    const arrow_obj = arrow();
+    arrow_obj.position.set(WIDTH / 4, 0, 0.1);
+    link.add(arrow_obj);
+
     return link;
 }
 
-function node() {
+function node(value) {
     const geometry = new THREE.PlaneGeometry(WIDTH, HEIGHT);
     const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
     const node = new THREE.Mesh(geometry, material);
     node.position.set(0, 0, 0);
+
+    const nodeDiv = document.createElement('div');
+    nodeDiv.className = 'label';
+    nodeDiv.textContent = value;
+    nodeDiv.style.margin_top = '-1em';
+    nodeDiv.style.fontSize = '3em';
+    nodeDiv.style.fontFamily = 'Source Sans Pro';
+    const nodeLabel = new CSS2DObject(nodeDiv);
+    nodeLabel.position.set(0, 0, 0);
+    node.add(nodeLabel);
+
     return node;
 }
 
@@ -54,14 +90,14 @@ function arrow() {
     const plane = new THREE.Mesh(plane_geometry, material);
     plane.position.set(OFFSET / 2, 0, 0);
 
-    const length = OFFSET;
+    const length = OFFSET - WIDTH + WIDTH / 2;
     const arrow_length = ARROW_WIDTH;
     const arrow_width = ARROW_WIDTH;
     const width = LINE_WIDTH;
     const tail_length = length - arrow_length;
 
     const head_geometry = new THREE.BufferGeometry();
-    const vertices = new Float32Array( [
+    const vertices = new Float32Array([
         0, width / 2, 0,
         0, -width / 2, 0,
         tail_length, -width / 2, 0,
@@ -85,9 +121,9 @@ function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
 
-    renderer.setSize( window.innerWidth, window.innerHeight );
-    renderer.render(scene, camera);
-
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    labelRenderer.setSize(window.innerWidth, window.innerHeight);
 }
 
 init();
+animate();

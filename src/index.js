@@ -12,6 +12,9 @@ const clock = new THREE.Clock();
 let scene, camera, renderer, labelRenderer;
 let root;
 
+let nodes = [];
+let num = 0;
+
 function init() {
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x050505);
@@ -21,12 +24,6 @@ function init() {
     scene.add(camera);
 
     root = new THREE.Group();
-
-    const l = link("42");
-    const l2 = link("15");
-    root.add(l);
-    root.add(l2);
-    l2.position.set(OFFSET, 0, 0);
 
     scene.add(root);
 
@@ -40,6 +37,8 @@ function init() {
     labelRenderer.domElement.style.position = 'absolute';
     labelRenderer.domElement.style.top = '0px';
     document.getElementById('container').appendChild(labelRenderer.domElement);
+
+    document.addEventListener('pointerdown', onPointerDown);
 
     window.addEventListener('resize', onWindowResize);
 }
@@ -114,6 +113,15 @@ function arrow() {
     const mesh = new THREE.Mesh(head_geometry, material);
 
     return mesh;
+}
+
+function onPointerDown() {
+    const l = link(num.toString());
+    num++;
+    const x = (nodes.length ? nodes[nodes.length - 1].position.x + OFFSET : 0);
+    l.position.set(x, 0, 0);
+    nodes.push(l);
+    root.add(l);
 }
 
 function onWindowResize() {

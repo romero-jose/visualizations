@@ -7,6 +7,8 @@ const HEIGHT = 5;
 const ARROW_WIDTH = 1;
 const LINE_WIDTH = 0.2;
 
+const FADE_IN_TIME = 1.0; // Seconds
+
 const clock = new THREE.Clock();
 
 let scene, camera, renderer, labelRenderer;
@@ -14,6 +16,9 @@ let root;
 
 let nodes = [];
 let num = 0;
+let added_time;
+
+let isShiftDown = false;
 
 function init() {
     scene = new THREE.Scene();
@@ -39,14 +44,31 @@ function init() {
     document.getElementById('container').appendChild(labelRenderer.domElement);
 
     document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onDocumentKeyDown);
+    document.addEventListener('keyup', onDocumentKeyUp);
 
     window.addEventListener('resize', onWindowResize);
+}
+
+function scurve(x) {
+    return (x > Math.PI / 2 ? 1 : Math.sin(x));
 }
 
 function animate() {
     requestAnimationFrame(animate);
     const elapsed = clock.getElapsedTime();
-    root.position.set(Math.sin(elapsed) * 5, 0, 0);
+    // root.position.set(Math.sin(elapsed) * 5, 0, 0);
+
+    const time_since_added = elapsed - added_time;
+    if (nodes.length > 0 && time_since_added < FADE_IN_TIME) {
+        const last = nodes[nodes.length - 1];
+        const node = last.children[0];
+        const node_material = node.material;
+        node_material.opacity = scurve(time_since_added / FADE_IN_TIME);
+        const arrow = last.children[1];
+        const arrow_material = arrow.material;
+        arrow_material.opacity = scurve(time_since_added / FADE_IN_TIME);
+    }
 
     renderer.render(scene, camera);
     labelRenderer.render(scene, camera);
@@ -59,13 +81,13 @@ function link(value) {
     const arrow_obj = arrow();
     arrow_obj.position.set(WIDTH / 4, 0, 0.1);
     link.add(arrow_obj);
-
+    added_time = clock.getElapsedTime();
     return link;
 }
 
 function node(value) {
     const geometry = new THREE.PlaneGeometry(WIDTH, HEIGHT);
-    const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const material = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1 });
     const node = new THREE.Mesh(geometry, material);
     node.position.set(0, 0, 0);
 
@@ -83,11 +105,7 @@ function node(value) {
 }
 
 function arrow() {
-    const material = new THREE.MeshBasicMaterial({ color: 0x0000ff });
-
-    const plane_geometry = new THREE.PlaneGeometry(OFFSET - WIDTH / 2, LINE_WIDTH);
-    const plane = new THREE.Mesh(plane_geometry, material);
-    plane.position.set(OFFSET / 2, 0, 0);
+    const material = new THREE.MeshBasicMaterial({ color: 0x0000ff, transparent: true, opacity: 1 });
 
     const length = OFFSET - WIDTH + WIDTH / 2;
     const arrow_length = ARROW_WIDTH;
@@ -116,12 +134,18 @@ function arrow() {
 }
 
 function onPointerDown() {
-    const l = link(num.toString());
-    num++;
-    const x = (nodes.length ? nodes[nodes.length - 1].position.x + OFFSET : 0);
-    l.position.set(x, 0, 0);
-    nodes.push(l);
-    root.add(l);
+    if (!isShiftDown) {
+        const l = link(num.toString());
+        num++;
+        const x = (nodes.length ? nodes[nodes.length - 1].position.x + OFFSET : 0);
+        l.position.set(x, 0, 0);
+        nodes.push(l);
+        root.add(l);
+    } else if (num > 0) {
+        num--;
+        const l = nodes.pop();
+        root.remove(l);
+    }
 }
 
 function onWindowResize() {
@@ -131,6 +155,19 @@ function onWindowResize() {
 
     renderer.setSize(window.innerWidth, window.innerHeight);
     labelRenderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+function onDocumentKeyDown(event) {
+    switch (event.keyCode) {
+
+        case 16: isShiftDown = true; break;
+    }
+}
+
+function onDocumentKeyUp(event) {
+    switch (event.keyCode) {
+        case 16: isShiftDown = false; break;
+    }
 }
 
 init();

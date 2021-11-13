@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 const OFFSET = 14;
 const WIDTH = 8;
@@ -47,6 +48,8 @@ function init() {
     document.addEventListener('keydown', onDocumentKeyDown);
     document.addEventListener('keyup', onDocumentKeyUp);
 
+    const controls = new OrbitControls( camera, renderer.domElement );
+
     window.addEventListener('resize', onWindowResize);
 }
 
@@ -57,7 +60,6 @@ function scurve(x) {
 function animate() {
     requestAnimationFrame(animate);
     const elapsed = clock.getElapsedTime();
-    // root.position.set(Math.sin(elapsed) * 5, 0, 0);
 
     const time_since_added = elapsed - added_time;
     if (nodes.length > 0 && time_since_added < FADE_IN_TIME) {

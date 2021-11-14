@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { Camera, Event, Group, Object3D, PerspectiveCamera, Renderer, Scene } from 'three';
 
 const OFFSET = 14;
 const WIDTH = 8;
@@ -12,14 +13,59 @@ const FADE_IN_TIME = 1.0; // Seconds
 
 const clock = new THREE.Clock();
 
-let scene, camera, renderer, labelRenderer;
-let root;
+let scene: Scene, camera: PerspectiveCamera, renderer: THREE.WebGLRenderer, labelRenderer: CSS2DRenderer;
+let root: Group;
 
-let nodes = [];
+let nodes: any[] = [];
 let num = 0;
-let added_time;
+let added_time: number;
 
 let isShiftDown = false;
+
+type InterpolationFunction = (dt: number) => number
+
+function linear_interpolation(dt: number): number {
+    return dt;
+}
+
+class Object {
+    object3d: Object3D = null
+    color: string = "#ffffff"
+    name: string = "unnamed"
+
+    interpolate(sigma: number): void {
+
+    }
+}
+
+class NodeObject extends Object {
+    inital_position: THREE.Vector3
+    final_position: THREE.Vector3
+
+    interpolate(sigma: number): void {
+        const new_position = this.final_position.sub(this.inital_position).multiplyScalar(sigma);
+        this.object3d.position.set(new_position.x, new_position.y, new_position.z);
+    }
+}
+
+class Animation {
+    object: Object = null
+    runtime: number = 3
+    interpolation_function: InterpolationFunction = linear_interpolation
+    delay_ratio: number = 0.1
+
+    init() {
+
+    }
+
+    interpolate(sigma: number): void {
+        this.object.interpolate(sigma)
+    }
+
+    delete() {
+
+    }
+}
 
 function init() {
     scene = new THREE.Scene();
@@ -41,19 +87,21 @@ function init() {
     labelRenderer = new CSS2DRenderer();
     labelRenderer.setSize(window.innerWidth, window.innerHeight);
     labelRenderer.domElement.style.position = 'absolute';
-    labelRenderer.domElement.style.top = '0px';
+    labelRenderer.domElement.style.alignItems = 'center';
+    labelRenderer.domElement.style.justifyContent = 'center';
+    // labelRenderer.domElement.style.top = '2em';
     document.getElementById('container').appendChild(labelRenderer.domElement);
 
     document.addEventListener('pointerdown', onPointerDown);
     document.addEventListener('keydown', onDocumentKeyDown);
     document.addEventListener('keyup', onDocumentKeyUp);
 
-    const controls = new OrbitControls( camera, renderer.domElement );
+    const controls = new OrbitControls(camera, renderer.domElement);
 
     window.addEventListener('resize', onWindowResize);
 }
 
-function scurve(x) {
+function scurve(x: number) {
     return (x > Math.PI / 2 ? 1 : Math.sin(x));
 }
 
@@ -76,7 +124,7 @@ function animate() {
     labelRenderer.render(scene, camera);
 }
 
-function link(value) {
+function link(value: string) {
     const link = new THREE.Group();
     link.add(node(value));
 
@@ -87,7 +135,7 @@ function link(value) {
     return link;
 }
 
-function node(value) {
+function node(value: string) {
     const geometry = new THREE.PlaneGeometry(WIDTH, HEIGHT);
     const material = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1 });
     const node = new THREE.Mesh(geometry, material);
@@ -96,7 +144,7 @@ function node(value) {
     const nodeDiv = document.createElement('div');
     nodeDiv.className = 'label';
     nodeDiv.textContent = value;
-    nodeDiv.style.margin_top = '-1em';
+    nodeDiv.style.marginTop = '-1em';
     nodeDiv.style.fontSize = '3em';
     nodeDiv.style.fontFamily = 'Source Sans Pro';
     const nodeLabel = new CSS2DObject(nodeDiv);
@@ -139,7 +187,7 @@ function onPointerDown() {
     if (!isShiftDown) {
         const l = link(num.toString());
         num++;
-        const x = (nodes.length ? nodes[nodes.length - 1].position.x + OFFSET : 0);
+        const x: number = (nodes.length ? nodes[nodes.length - 1].position.x + OFFSET : 0);
         l.position.set(x, 0, 0);
         nodes.push(l);
         root.add(l);
@@ -151,7 +199,6 @@ function onPointerDown() {
 }
 
 function onWindowResize() {
-
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
 
@@ -159,14 +206,14 @@ function onWindowResize() {
     labelRenderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-function onDocumentKeyDown(event) {
+function onDocumentKeyDown(event: Event) {
     switch (event.keyCode) {
 
         case 16: isShiftDown = true; break;
     }
 }
 
-function onDocumentKeyUp(event) {
+function onDocumentKeyUp(event: Event) {
     switch (event.keyCode) {
         case 16: isShiftDown = false; break;
     }

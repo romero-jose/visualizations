@@ -11,16 +11,16 @@ const FADE_IN_TIME = 1.0; // Seconds
 
 const clock = new THREE.Clock();
 
-let scene, camera, renderer, labelRenderer;
-let root;
+let scene: THREE.Scene, camera: THREE.PerspectiveCamera, renderer: THREE.WebGLRenderer, labelRenderer: CSS2DRenderer;
+let root: THREE.Group;
 
-let nodes = [];
+let nodes: any[] = [];
 let num = 0;
-let added_time;
+let added_time: number;
 
 let isShiftDown = false;
 
-function init() {
+function init(): void {
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x050505);
 
@@ -50,14 +50,13 @@ function init() {
     window.addEventListener('resize', onWindowResize);
 }
 
-function scurve(x) {
+function scurve(x: number): number {
     return (x > Math.PI / 2 ? 1 : Math.sin(x));
 }
 
-function animate() {
+function animate(): void {
     requestAnimationFrame(animate);
     const elapsed = clock.getElapsedTime();
-    // root.position.set(Math.sin(elapsed) * 5, 0, 0);
 
     const time_since_added = elapsed - added_time;
     if (nodes.length > 0 && time_since_added < FADE_IN_TIME) {
@@ -74,7 +73,7 @@ function animate() {
     labelRenderer.render(scene, camera);
 }
 
-function link(value) {
+function link(value: string): THREE.Group {
     const link = new THREE.Group();
     link.add(node(value));
 
@@ -85,7 +84,7 @@ function link(value) {
     return link;
 }
 
-function node(value) {
+function node(value: string): THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial> {
     const geometry = new THREE.PlaneGeometry(WIDTH, HEIGHT);
     const material = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1 });
     const node = new THREE.Mesh(geometry, material);
@@ -94,7 +93,7 @@ function node(value) {
     const nodeDiv = document.createElement('div');
     nodeDiv.className = 'label';
     nodeDiv.textContent = value;
-    nodeDiv.style.margin_top = '-1em';
+    nodeDiv.style.marginTop = '0em';
     nodeDiv.style.fontSize = '3em';
     nodeDiv.style.fontFamily = 'Source Sans Pro';
     const nodeLabel = new CSS2DObject(nodeDiv);
@@ -104,7 +103,7 @@ function node(value) {
     return node;
 }
 
-function arrow() {
+function arrow(): THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> {
     const material = new THREE.MeshBasicMaterial({ color: 0x0000ff, transparent: true, opacity: 1 });
 
     const length = OFFSET - WIDTH + WIDTH / 2;
@@ -133,7 +132,7 @@ function arrow() {
     return mesh;
 }
 
-function onPointerDown() {
+function onPointerDown(): void {
     if (!isShiftDown) {
         const l = link(num.toString());
         num++;
@@ -148,7 +147,7 @@ function onPointerDown() {
     }
 }
 
-function onWindowResize() {
+function onWindowResize(): void {
 
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
@@ -157,14 +156,14 @@ function onWindowResize() {
     labelRenderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-function onDocumentKeyDown(event) {
+function onDocumentKeyDown(event: THREE.Event): void {
     switch (event.keyCode) {
 
         case 16: isShiftDown = true; break;
     }
 }
 
-function onDocumentKeyUp(event) {
+function onDocumentKeyUp(event: THREE.Event): void {
     switch (event.keyCode) {
         case 16: isShiftDown = false; break;
     }

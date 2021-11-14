@@ -1,7 +1,19 @@
 const path = require('path');
 
 module.exports = {
-    entry: './src/index.js',
+    entry: './src/index.ts',
+    module: {
+        rules: [
+            {
+                test: /\.tsx?$/,
+                use: 'ts-loader',
+                exclude: /node_modules/,
+            },
+        ],
+    },
+    resolve: {
+        extensions: ['.tsx', '.ts', '.js'],
+    },
     output: {
         filename: 'main.js',
         path: path.resolve(__dirname, 'dist'),
@@ -11,7 +23,8 @@ module.exports = {
             directory: path.join(__dirname, 'dist'),
         },
         compress: true,
-        port: 9000,
+        port: 8080,
     },
+    devtool: "source-map",
     mode: 'development'
 };

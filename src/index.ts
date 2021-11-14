@@ -1,9 +1,9 @@
 import * as three from 'three'
 import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 
-const OFFSET = 14;
-const WIDTH = 8;
-const HEIGHT = 5;
+const OFFSET = 10;
+const WIDTH = 6;
+const HEIGHT = 4;
 const ARROW_WIDTH = 1;
 const LINE_WIDTH = 0.2;
 
@@ -11,7 +11,7 @@ const FADE_IN_TIME = 1.0; // Seconds
 
 const clock = new three.Clock();
 
-let scene: three.Scene, camera: three.PerspectiveCamera, renderer: three.WebGLRenderer, labelRenderer: CSS2DRenderer;
+let scene: three.Scene, camera: three.PerspectiveCamera, renderer: three.WebGLRenderer, labelRenderer: CSS2DRenderer, mixer: three.AnimationMixer;
 let root: three.Group;
 
 let nodes: any[] = [];
@@ -28,9 +28,28 @@ function init(): void {
     camera.position.set(0, 0, 100);
     scene.add(camera);
 
-    root = new three.Group();
+    const link_object = create_link('node 1');
+    scene.add(link_object);
 
-    scene.add(root);
+    const arrow_group = new three.Group();
+    const iterator_arrow = create_arrow();
+    iterator_arrow.rotateZ(3 * Math.PI / 2);
+    iterator_arrow.position.set(0, OFFSET - WIDTH + WIDTH / 2 + HEIGHT / 2, 0);
+    arrow_group.add(iterator_arrow);
+
+    scene.add(arrow_group);
+
+    const num_nodes = 10;
+    const step_time = 1;
+    const iterate_animation_clip = iterate_animation(num_nodes, step_time);
+
+    const nodes = create_nodes(num_nodes);
+    scene.add(nodes);
+
+    mixer = new three.AnimationMixer(arrow_group);
+
+    const clip_action = mixer.clipAction(iterate_animation_clip);
+    clip_action.play();
 
     renderer = new three.WebGLRenderer();
     renderer.setPixelRatio(window.devicePixelRatio);
@@ -43,52 +62,59 @@ function init(): void {
     labelRenderer.domElement.style.top = '0px';
     document.getElementById('container').appendChild(labelRenderer.domElement);
 
-    document.addEventListener('pointerdown', onPointerDown);
     document.addEventListener('keydown', onDocumentKeyDown);
     document.addEventListener('keyup', onDocumentKeyUp);
 
     window.addEventListener('resize', onWindowResize);
 }
 
-function scurve(x: number): number {
-    return (x > Math.PI / 2 ? 1 : Math.sin(x));
-}
+function create_nodes(num_nodes: number): three.Group {
+    const group = new three.Group();
 
-function animate(): void {
-    requestAnimationFrame(animate);
-    const elapsed = clock.getElapsedTime();
-
-    const time_since_added = elapsed - added_time;
-    if (nodes.length > 0 && time_since_added < FADE_IN_TIME) {
-        const last = nodes[nodes.length - 1];
-        const node = last.children[0];
-        const node_material = node.material;
-        node_material.opacity = scurve(time_since_added / FADE_IN_TIME);
-        const arrow = last.children[1];
-        const arrow_material = arrow.material;
-        arrow_material.opacity = scurve(time_since_added / FADE_IN_TIME);
+    for (let i = 0; i < num_nodes; ++i) {
+        const link_object = create_link(i.toString());
+        link_object.position.set(OFFSET * i, 0, 0);
+        group.add(link_object);
     }
 
-    renderer.render(scene, camera);
-    labelRenderer.render(scene, camera);
+    return group;
 }
 
-function link(value: string): three.Group {
-    const link = new three.Group();
-    link.add(node(value));
+function iterate_animation(num_nodes: number, time: number) {
+    let values: number[] = Array(3 * num_nodes * 2);
+    let times: number[] = Array(num_nodes);
+    for (let i = 0; i < num_nodes; ++i) {
+        values[6 * i + 0] = i * OFFSET;
+        values[6 * i + 1] = 0;
+        values[6 * i + 2] = 0;
+        values[6 * i + 3] = i * OFFSET;
+        values[6 * i + 4] = 0;
+        values[6 * i + 5] = 0;
+        times[2 * i] = 2 * i * time;
+        times[2 * i + 1] = (2 * i + 1) * time
+    }
+    const position_kf = new three.VectorKeyframeTrack('.position', times, values);
+    const clip = new three.AnimationClip('Action', num_nodes * time, [position_kf]);
+    return clip;
+}
 
-    const arrow_obj = arrow();
-    arrow_obj.position.set(WIDTH / 4, 0, 0.1);
+function create_link(value: string): three.Group {
+    const link = new three.Group();
+    link.add(create_node(value));
+    const arrow_obj = create_arrow();
+    arrow_obj.position.set(WIDTH / 4, 0, 0.001);
     link.add(arrow_obj);
-    added_time = clock.getElapsedTime();
     return link;
 }
 
-function node(value: string): three.Mesh<three.PlaneGeometry, three.MeshBasicMaterial> {
+function create_node(value: string): three.Group {
+    const group = new three.Group();
+
     const geometry = new three.PlaneGeometry(WIDTH, HEIGHT);
     const material = new three.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1 });
     const node = new three.Mesh(geometry, material);
     node.position.set(0, 0, 0);
+    group.add(node);
 
     const nodeDiv = document.createElement('div');
     nodeDiv.className = 'label';
@@ -98,21 +124,15 @@ function node(value: string): three.Mesh<three.PlaneGeometry, three.MeshBasicMat
     nodeDiv.style.fontFamily = 'Source Sans Pro';
     const nodeLabel = new CSS2DObject(nodeDiv);
     nodeLabel.position.set(0, 0, 0);
-    node.add(nodeLabel);
+    group.add(nodeLabel);
 
-    return node;
+    return group;
 }
 
-function arrow(): three.Mesh<three.BufferGeometry, three.MeshBasicMaterial> {
-    const material = new three.MeshBasicMaterial({ color: 0x0000ff, transparent: true, opacity: 1 });
+function arrow_geometry(length: number, width: number, head_length: number, head_width: number): three.BufferGeometry {
+    const tail_length = length - head_length;
 
-    const length = OFFSET - WIDTH + WIDTH / 2;
-    const arrow_length = ARROW_WIDTH;
-    const arrow_width = ARROW_WIDTH;
-    const width = LINE_WIDTH;
-    const tail_length = length - arrow_length;
-
-    const head_geometry = new three.BufferGeometry();
+    const geometry = new three.BufferGeometry();
     const vertices = new Float32Array([
         0, width / 2, 0,
         0, -width / 2, 0,
@@ -122,33 +142,30 @@ function arrow(): three.Mesh<three.BufferGeometry, three.MeshBasicMaterial> {
         tail_length, width / 2, 0,
         0, width / 2, 0,
 
-        tail_length, arrow_width / 2, 0,
-        tail_length, -arrow_width / 2, 0,
+        tail_length, head_width / 2, 0,
+        tail_length, -head_width / 2, 0,
         length, 0, 0,
     ])
-    head_geometry.setAttribute('position', new three.BufferAttribute(vertices, 3));
+    geometry.setAttribute('position', new three.BufferAttribute(vertices, 3));
+
+    return geometry;
+}
+
+function create_arrow(): three.Mesh<three.BufferGeometry, three.MeshBasicMaterial> {
+    const material = new three.MeshBasicMaterial({ color: 0x0000ff, transparent: true, opacity: 1 });
+
+    const length = OFFSET - WIDTH + WIDTH / 2;
+    const width = LINE_WIDTH;
+    const head_length = ARROW_WIDTH;
+    const head_width = ARROW_WIDTH;
+
+    const head_geometry = arrow_geometry(length, width, head_length, head_width)
     const mesh = new three.Mesh(head_geometry, material);
 
     return mesh;
 }
 
-function onPointerDown(): void {
-    if (!isShiftDown) {
-        const l = link(num.toString());
-        num++;
-        const x = (nodes.length ? nodes[nodes.length - 1].position.x + OFFSET : 0);
-        l.position.set(x, 0, 0);
-        nodes.push(l);
-        root.add(l);
-    } else if (num > 0) {
-        num--;
-        const l = nodes.pop();
-        root.remove(l);
-    }
-}
-
 function onWindowResize(): void {
-
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
 
@@ -167,6 +184,27 @@ function onDocumentKeyUp(event: three.Event): void {
     switch (event.keyCode) {
         case 16: isShiftDown = false; break;
     }
+}
+
+function animate() {
+
+    requestAnimationFrame(animate);
+
+    render();
+
+}
+
+function render() {
+
+    const delta = clock.getDelta();
+
+    if (mixer) {
+
+        mixer.update(delta);
+
+    }
+
+    renderer.render(scene, camera);
 }
 
 init();

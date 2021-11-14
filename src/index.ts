@@ -1,4 +1,4 @@
-import * as THREE from 'three'
+import * as three from 'three'
 import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 
 const OFFSET = 14;
@@ -9,10 +9,10 @@ const LINE_WIDTH = 0.2;
 
 const FADE_IN_TIME = 1.0; // Seconds
 
-const clock = new THREE.Clock();
+const clock = new three.Clock();
 
-let scene: THREE.Scene, camera: THREE.PerspectiveCamera, renderer: THREE.WebGLRenderer, labelRenderer: CSS2DRenderer;
-let root: THREE.Group;
+let scene: three.Scene, camera: three.PerspectiveCamera, renderer: three.WebGLRenderer, labelRenderer: CSS2DRenderer;
+let root: three.Group;
 
 let nodes: any[] = [];
 let num = 0;
@@ -21,18 +21,18 @@ let added_time: number;
 let isShiftDown = false;
 
 function init(): void {
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x050505);
+    scene = new three.Scene();
+    scene.background = new three.Color(0x050505);
 
-    camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 5000);
+    camera = new three.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 5000);
     camera.position.set(0, 0, 100);
     scene.add(camera);
 
-    root = new THREE.Group();
+    root = new three.Group();
 
     scene.add(root);
 
-    renderer = new THREE.WebGLRenderer();
+    renderer = new three.WebGLRenderer();
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.getElementById('container').appendChild(renderer.domElement);
@@ -73,8 +73,8 @@ function animate(): void {
     labelRenderer.render(scene, camera);
 }
 
-function link(value: string): THREE.Group {
-    const link = new THREE.Group();
+function link(value: string): three.Group {
+    const link = new three.Group();
     link.add(node(value));
 
     const arrow_obj = arrow();
@@ -84,10 +84,10 @@ function link(value: string): THREE.Group {
     return link;
 }
 
-function node(value: string): THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial> {
-    const geometry = new THREE.PlaneGeometry(WIDTH, HEIGHT);
-    const material = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1 });
-    const node = new THREE.Mesh(geometry, material);
+function node(value: string): three.Mesh<three.PlaneGeometry, three.MeshBasicMaterial> {
+    const geometry = new three.PlaneGeometry(WIDTH, HEIGHT);
+    const material = new three.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1 });
+    const node = new three.Mesh(geometry, material);
     node.position.set(0, 0, 0);
 
     const nodeDiv = document.createElement('div');
@@ -103,8 +103,8 @@ function node(value: string): THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMat
     return node;
 }
 
-function arrow(): THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> {
-    const material = new THREE.MeshBasicMaterial({ color: 0x0000ff, transparent: true, opacity: 1 });
+function arrow(): three.Mesh<three.BufferGeometry, three.MeshBasicMaterial> {
+    const material = new three.MeshBasicMaterial({ color: 0x0000ff, transparent: true, opacity: 1 });
 
     const length = OFFSET - WIDTH + WIDTH / 2;
     const arrow_length = ARROW_WIDTH;
@@ -112,7 +112,7 @@ function arrow(): THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> {
     const width = LINE_WIDTH;
     const tail_length = length - arrow_length;
 
-    const head_geometry = new THREE.BufferGeometry();
+    const head_geometry = new three.BufferGeometry();
     const vertices = new Float32Array([
         0, width / 2, 0,
         0, -width / 2, 0,
@@ -126,8 +126,8 @@ function arrow(): THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> {
         tail_length, -arrow_width / 2, 0,
         length, 0, 0,
     ])
-    head_geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
-    const mesh = new THREE.Mesh(head_geometry, material);
+    head_geometry.setAttribute('position', new three.BufferAttribute(vertices, 3));
+    const mesh = new three.Mesh(head_geometry, material);
 
     return mesh;
 }
@@ -156,14 +156,14 @@ function onWindowResize(): void {
     labelRenderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-function onDocumentKeyDown(event: THREE.Event): void {
+function onDocumentKeyDown(event: three.Event): void {
     switch (event.keyCode) {
 
         case 16: isShiftDown = true; break;
     }
 }
 
-function onDocumentKeyUp(event: THREE.Event): void {
+function onDocumentKeyUp(event: three.Event): void {
     switch (event.keyCode) {
         case 16: isShiftDown = false; break;
     }

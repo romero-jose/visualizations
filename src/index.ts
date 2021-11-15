@@ -1,5 +1,6 @@
 import * as three from 'three'
 import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 const OFFSET = 10;
 const WIDTH = 6;
@@ -9,9 +10,25 @@ const LINE_WIDTH = 0.2;
 
 const clock = new three.Clock();
 
-let scene: three.Scene, camera: three.PerspectiveCamera, renderer: three.WebGLRenderer, labelRenderer: CSS2DRenderer, iteration_mixer: three.AnimationMixer;
+let scene: three.Scene,
+    camera: three.PerspectiveCamera,
+    renderer: three.WebGLRenderer,
+    labelRenderer: CSS2DRenderer,
+    iteration_mixer: three.AnimationMixer,
+    controls: OrbitControls;
 
 function init(): void {
+    renderer = new three.WebGLRenderer();
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.getElementById('container').appendChild(renderer.domElement);
+
+    labelRenderer = new CSS2DRenderer();
+    labelRenderer.setSize(window.innerWidth, window.innerHeight);
+    labelRenderer.domElement.style.position = 'absolute';
+    labelRenderer.domElement.style.top = '0px';
+    document.getElementById('container').appendChild(labelRenderer.domElement);
+
     scene = new three.Scene();
     scene.background = new three.Color(0x050505);
 
@@ -19,12 +36,17 @@ function init(): void {
     camera.position.set(30, 0, 100);
     scene.add(camera);
 
+    controls = new OrbitControls(camera, document.getElementById('container'));
+    controls.update();
+
+    controls.minDistance = 1;
+    controls.maxDistance = 1000;
+
+    controls.maxPolarAngle = Math.PI / 2;
+
     // Geometry
 
     const num_nodes = 10;
-
-    const link_object = create_link('node 1');
-    scene.add(link_object);
 
     const arrow_group = new three.Group();
     const iterator_arrow = create_arrow('iterator_arrow');
@@ -61,17 +83,6 @@ function init(): void {
 
     const mediator = new AnimationMediator(iteration_mixer, actions, sequence);
     mediator.play();
-
-    renderer = new three.WebGLRenderer();
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.getElementById('container').appendChild(renderer.domElement);
-
-    labelRenderer = new CSS2DRenderer();
-    labelRenderer.setSize(window.innerWidth, window.innerHeight);
-    labelRenderer.domElement.style.position = 'absolute';
-    labelRenderer.domElement.style.top = '0px';
-    document.getElementById('container').appendChild(labelRenderer.domElement);
 
     window.addEventListener('resize', onWindowResize);
 }
@@ -141,6 +152,7 @@ function create_node(value: string): three.Group {
     const nodeLabel = new CSS2DObject(nodeDiv);
     nodeLabel.position.set(0, 0, 0);
     group.add(nodeLabel);
+    document.getElementById('container').appendChild(nodeDiv);
 
     return group;
 }
@@ -191,25 +203,19 @@ function onWindowResize(): void {
 }
 
 function animate() {
-
     requestAnimationFrame(animate);
-
     render();
-
 }
 
 function render() {
-
     const delta = clock.getDelta();
-
     if (iteration_mixer) {
-
         iteration_mixer.update(delta);
-
     }
-
     renderer.render(scene, camera);
+    labelRenderer.render(scene, camera);
 }
+
 class AnimationMediator {
     mixer: three.AnimationMixer;
     actions: Record<string, three.AnimationAction>;

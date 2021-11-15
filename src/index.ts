@@ -16,7 +16,7 @@ function init(): void {
     scene.background = new three.Color(0x050505);
 
     camera = new three.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 5000);
-    camera.position.set(0, 0, 100);
+    camera.position.set(30, 0, 100);
     scene.add(camera);
 
     // Geometry

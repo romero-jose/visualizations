@@ -47,9 +47,9 @@ function init(): void {
     const fade_in_animation_clip = opacity_animation(step_time, 0, 1);
 
     const actions: Record<string, three.AnimationAction> = {
-        'iterate_action': iteration_mixer.clipAction(iterate_animation_clip),
-        'fade_out_action': iteration_mixer.clipAction(fade_out_animation_clip),
-        'fade_in_action': iteration_mixer.clipAction(fade_in_animation_clip),
+        'iterate': iteration_mixer.clipAction(iterate_animation_clip),
+        'fade_out': iteration_mixer.clipAction(fade_out_animation_clip),
+        'fade_in': iteration_mixer.clipAction(fade_in_animation_clip),
     };
 
     for (let action in actions) {
@@ -57,13 +57,10 @@ function init(): void {
         actions[action].loop = three.LoopOnce;
     }
 
-    actions['iterate_action'].play();
+    const sequence = ['iterate', 'iterate'];
 
-    const action_sequence = [
-        actions.iterate_action,
-        actions.fade_out_action,
-        actions.fade_in_action,
-    ]
+    const mediator = new AnimationMediator(iteration_mixer, actions, sequence);
+    mediator.play();
 
     renderer = new three.WebGLRenderer();
     renderer.setPixelRatio(window.devicePixelRatio);
@@ -78,12 +75,6 @@ function init(): void {
 
     window.addEventListener('resize', onWindowResize);
 }
-
-// function play_next_action(action_sequence: three.AnimationAction[]) {
-//     if (action_sequence.length == 0) return;
-//     const current_action = action_sequence[0];
-//     action_sequence = action_sequence.slice(1,);
-// }
 
 function create_nodes(num_nodes: number): three.Group {
     const group = new three.Group();
@@ -111,7 +102,7 @@ function iterate_animation(num_nodes: number, time: number) {
         times[2 * i + 1] = (2 * i + 1) * time
     }
     const position_kf = new three.VectorKeyframeTrack('.position', times, values);
-    const clip = new three.AnimationClip('Iterate', num_nodes * time, [position_kf]);
+    const clip = new three.AnimationClip('Iterate', times[times.length - 1], [position_kf]);
     return clip;
 }
 
@@ -119,7 +110,7 @@ function opacity_animation(time: number, inital_opacity: number = 0, final_opaci
     const values = [inital_opacity, final_opacity];
     const times = [0, time];
     const opacity_kf = new three.NumberKeyframeTrack('iterator_arrow.opacity', times, values);
-    const clip = new three.AnimationClip('Dissapear', time, [opacity_kf]);
+    const clip = new three.AnimationClip('Dissapear', times[times.length - 1], [opacity_kf]);
     return clip;
 }
 
@@ -218,6 +209,48 @@ function render() {
     }
 
     renderer.render(scene, camera);
+}
+class AnimationMediator {
+    mixer: three.AnimationMixer;
+    actions: Record<string, three.AnimationAction>;
+    sequence: string[];
+    current_action: number;
+
+    constructor(mixer: three.AnimationMixer, actions: Record<string, three.AnimationAction>, sequence: string[]) {
+        this.mixer = mixer;
+        this.actions = actions;
+        this.sequence = sequence;
+        this.current_action = 0;
+
+        this.mixer.addEventListener('finished', (/* event */) => this.on_finish());
+    }
+
+    register_action(name: string, action: three.AnimationAction) {
+        this.sequence.push(name);
+        this.actions[name] = action;
+    }
+
+    queue_action(name: string) {
+        this.sequence.push(name);
+    }
+
+    on_finish() {
+        if (this.current_action == this.sequence.length - 1) return;
+        const action = this.get_current_action();
+        action.reset();
+        this.current_action++;
+        const current_action = this.get_current_action();
+        current_action.setLoop(three.LoopOnce, 1);
+        current_action.play();
+    }
+
+    get_current_action() {
+        return this.actions[this.sequence[this.current_action]];
+    }
+
+    play() {
+        this.get_current_action().play();
+    }
 }
 
 init();

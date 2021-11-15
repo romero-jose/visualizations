@@ -241,7 +241,7 @@ class AnimationMediator {
     }
 
     on_finish() {
-        if (this.current_action == this.sequence.length - 1) return;
+        if (this.current_action === this.sequence.length - 1) return;
         const action = this.get_current_action();
         action.reset();
         this.current_action++;

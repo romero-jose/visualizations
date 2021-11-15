@@ -7,18 +7,9 @@ const HEIGHT = 4;
 const ARROW_WIDTH = 1;
 const LINE_WIDTH = 0.2;
 
-const FADE_IN_TIME = 1.0; // Seconds
-
 const clock = new three.Clock();
 
-let scene: three.Scene, camera: three.PerspectiveCamera, renderer: three.WebGLRenderer, labelRenderer: CSS2DRenderer, mixer: three.AnimationMixer;
-let root: three.Group;
-
-let nodes: any[] = [];
-let num = 0;
-let added_time: number;
-
-let isShiftDown = false;
+let scene: three.Scene, camera: three.PerspectiveCamera, renderer: three.WebGLRenderer, labelRenderer: CSS2DRenderer, iteration_mixer: three.AnimationMixer;
 
 function init(): void {
     scene = new three.Scene();
@@ -28,28 +19,51 @@ function init(): void {
     camera.position.set(0, 0, 100);
     scene.add(camera);
 
+    // Geometry
+
+    const num_nodes = 10;
+
     const link_object = create_link('node 1');
     scene.add(link_object);
 
     const arrow_group = new three.Group();
-    const iterator_arrow = create_arrow();
+    const iterator_arrow = create_arrow('iterator_arrow');
     iterator_arrow.rotateZ(3 * Math.PI / 2);
     iterator_arrow.position.set(0, OFFSET - WIDTH + WIDTH / 2 + HEIGHT / 2, 0);
     arrow_group.add(iterator_arrow);
 
     scene.add(arrow_group);
 
-    const num_nodes = 10;
-    const step_time = 1;
-    const iterate_animation_clip = iterate_animation(num_nodes, step_time);
-
     const nodes = create_nodes(num_nodes);
     scene.add(nodes);
 
-    mixer = new three.AnimationMixer(arrow_group);
+    // Animation
+    const step_time = 1;
 
-    const clip_action = mixer.clipAction(iterate_animation_clip);
-    clip_action.play();
+    iteration_mixer = new three.AnimationMixer(arrow_group);
+
+    const iterate_animation_clip = iterate_animation(num_nodes, step_time);
+    const fade_out_animation_clip = opacity_animation(step_time, 1, 0);
+    const fade_in_animation_clip = opacity_animation(step_time, 0, 1);
+
+    const actions: Record<string, three.AnimationAction> = {
+        'iterate_action': iteration_mixer.clipAction(iterate_animation_clip),
+        'fade_out_action': iteration_mixer.clipAction(fade_out_animation_clip),
+        'fade_in_action': iteration_mixer.clipAction(fade_in_animation_clip),
+    };
+
+    for (let action in actions) {
+        actions[action].clampWhenFinished = true;
+        actions[action].loop = three.LoopOnce;
+    }
+
+    actions['iterate_action'].play();
+
+    const action_sequence = [
+        actions.iterate_action,
+        actions.fade_out_action,
+        actions.fade_in_action,
+    ]
 
     renderer = new three.WebGLRenderer();
     renderer.setPixelRatio(window.devicePixelRatio);
@@ -62,11 +76,14 @@ function init(): void {
     labelRenderer.domElement.style.top = '0px';
     document.getElementById('container').appendChild(labelRenderer.domElement);
 
-    document.addEventListener('keydown', onDocumentKeyDown);
-    document.addEventListener('keyup', onDocumentKeyUp);
-
     window.addEventListener('resize', onWindowResize);
 }
+
+// function play_next_action(action_sequence: three.AnimationAction[]) {
+//     if (action_sequence.length == 0) return;
+//     const current_action = action_sequence[0];
+//     action_sequence = action_sequence.slice(1,);
+// }
 
 function create_nodes(num_nodes: number): three.Group {
     const group = new three.Group();
@@ -94,7 +111,15 @@ function iterate_animation(num_nodes: number, time: number) {
         times[2 * i + 1] = (2 * i + 1) * time
     }
     const position_kf = new three.VectorKeyframeTrack('.position', times, values);
-    const clip = new three.AnimationClip('Action', num_nodes * time, [position_kf]);
+    const clip = new three.AnimationClip('Iterate', num_nodes * time, [position_kf]);
+    return clip;
+}
+
+function opacity_animation(time: number, inital_opacity: number = 0, final_opacity: number = 1) {
+    const values = [inital_opacity, final_opacity];
+    const times = [0, time];
+    const opacity_kf = new three.NumberKeyframeTrack('iterator_arrow.opacity', times, values);
+    const clip = new three.AnimationClip('Dissapear', time, [opacity_kf]);
     return clip;
 }
 
@@ -151,7 +176,7 @@ function arrow_geometry(length: number, width: number, head_length: number, head
     return geometry;
 }
 
-function create_arrow(): three.Mesh<three.BufferGeometry, three.MeshBasicMaterial> {
+function create_arrow(name: string = ''): three.Mesh<three.BufferGeometry, three.MeshBasicMaterial> {
     const material = new three.MeshBasicMaterial({ color: 0x0000ff, transparent: true, opacity: 1 });
 
     const length = OFFSET - WIDTH + WIDTH / 2;
@@ -161,6 +186,7 @@ function create_arrow(): three.Mesh<three.BufferGeometry, three.MeshBasicMateria
 
     const head_geometry = arrow_geometry(length, width, head_length, head_width)
     const mesh = new three.Mesh(head_geometry, material);
+    mesh.name = name;
 
     return mesh;
 }
@@ -171,19 +197,6 @@ function onWindowResize(): void {
 
     renderer.setSize(window.innerWidth, window.innerHeight);
     labelRenderer.setSize(window.innerWidth, window.innerHeight);
-}
-
-function onDocumentKeyDown(event: three.Event): void {
-    switch (event.keyCode) {
-
-        case 16: isShiftDown = true; break;
-    }
-}
-
-function onDocumentKeyUp(event: three.Event): void {
-    switch (event.keyCode) {
-        case 16: isShiftDown = false; break;
-    }
 }
 
 function animate() {
@@ -198,9 +211,9 @@ function render() {
 
     const delta = clock.getDelta();
 
-    if (mixer) {
+    if (iteration_mixer) {
 
-        mixer.update(delta);
+        iteration_mixer.update(delta);
 
     }
 

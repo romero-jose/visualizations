@@ -79,7 +79,7 @@ function init(): void {
         actions[action].loop = three.LoopOnce;
     }
 
-    const sequence = ['iterate', 'iterate'];
+    const sequence = ['fade_in', 'iterate', 'iterate', 'fade_out'];
 
     const mediator = new AnimationMediator(iteration_mixer, actions, sequence);
     mediator.play();
@@ -120,8 +120,8 @@ function iterate_animation(num_nodes: number, time: number) {
 function opacity_animation(time: number, inital_opacity: number = 0, final_opacity: number = 1) {
     const values = [inital_opacity, final_opacity];
     const times = [0, time];
-    const opacity_kf = new three.NumberKeyframeTrack('iterator_arrow.opacity', times, values);
-    const clip = new three.AnimationClip('Dissapear', times[times.length - 1], [opacity_kf]);
+    const opacity_kf = new three.NumberKeyframeTrack('iterator_arrow.material.opacity', times, values);
+    const clip = new three.AnimationClip('Dissapear', time, [opacity_kf]);
     return clip;
 }
 

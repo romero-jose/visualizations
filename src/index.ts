@@ -2,6 +2,7 @@ import * as three from 'three'
 import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { AnimationAction } from 'three';
+import { resolve } from '../webpack.config';
 
 const OFFSET = 10;
 const WIDTH = 6;
@@ -48,10 +49,10 @@ function init(): void {
     controls.enableRotate = false;
     controls.enableDamping = false;
 
-    animate_add_node(1, "node 0");
-    animate_add_node(2, "node 1");
-    animate_add_node(3, "node 2");
-    animate_add_node(4, "node 3");
+    animate_add_node(0, "node 0")
+        .then(() => animate_add_node(1, "node 1"))
+        .then(() => animate_add_node(2, "node 2"))
+        .then(() => animate_add_node(3, "node 3"));
 
     window.addEventListener('resize', onWindowResize);
 }
@@ -66,90 +67,99 @@ function configure_actions(actions: AnimationActionRecord) {
 }
 
 function animate_add_node(num_nodes: number, value: string) {
-    // Create arrow
-    const arrow_obj = create_arrow();
-    arrow_obj.position.set(WIDTH / 4, 0, 0.001);
-    scene.add(arrow_obj);
+    return new Promise<void>((resolve, reject) => {
+        // Create iterator arrow
+        const iterator_arrow_group = new three.Group();
+        iterator_arrow_group.name = "iterator_arrow_group";
+        const iterator_arrow = create_arrow('iterator_arrow');
+        iterator_arrow.rotateZ(3 * Math.PI / 2);
+        iterator_arrow.position.set(0, OFFSET - WIDTH + WIDTH / 2 + HEIGHT / 2, 0);
+        iterator_arrow.material.opacity = 0;
+        iterator_arrow_group.add(iterator_arrow);
+        scene.add(iterator_arrow_group);
 
-    // Create iterator arrow
-    const iterator_arrow_group = new three.Group();
-    iterator_arrow_group.name = "iterator_arrow_group";
-    const iterator_arrow = create_arrow('iterator_arrow');
-    iterator_arrow.rotateZ(3 * Math.PI / 2);
-    iterator_arrow.position.set(0, OFFSET - WIDTH + WIDTH / 2 + HEIGHT / 2, 0);
-    iterator_arrow_group.add(iterator_arrow);
-    scene.add(iterator_arrow_group);
+        // Create node
+        const node = create_node(value, 0);
+        const new_pos = node.position.add(new three.Vector3(num_nodes * OFFSET, 0, 0));
+        node.position.set(new_pos.x, new_pos.y, new_pos.z);
+        node.name = `node_${num_nodes}`;
+        scene.add(node);
 
-    // Create node
-    const node = create_node(value, 0);
-    const new_pos = node.position.add(new three.Vector3(num_nodes * OFFSET, 0, 0));
-    node.position.set(new_pos.x, new_pos.y, new_pos.z);
-    node.name = `node_${num_nodes}`;
-    scene.add(node);
+        // Create arrow
+        const arrow = create_arrow();
+        arrow.position.set(num_nodes * OFFSET + WIDTH / 4, 0, 0);
+        arrow.material.transparent = true;
+        arrow.material.opacity = 0;
+        scene.add(arrow);
 
-    // Create arrow
-    const arrow = create_arrow();
-    arrow.position.set(num_nodes * OFFSET + WIDTH / 4, 0, 0);
-    arrow.material.transparent = true;
-    arrow.material.opacity = 0;
-    scene.add(arrow);
+        // Animation
+        const step_time = 2;
 
-    // Animation
-    const step_time = 1;
+        const iterator_arrow_mixer = new three.AnimationMixer(iterator_arrow_group);
+        const node_mixer = new three.AnimationMixer(node);
+        const arrow_mixer = new three.AnimationMixer(arrow);
 
-    const iterator_arrow_mixer = new three.AnimationMixer(iterator_arrow_group);
-    const node_mixer = new three.AnimationMixer(node);
-    const arrow_mixer = new three.AnimationMixer(arrow);
+        const iterate_animation_clip = iterate_animation(num_nodes, step_time);
+        const fade_out_animation_clip = opacity_animation('iterator_arrow', step_time, 1, 0);
+        const fade_in_animation_clip = opacity_animation('iterator_arrow', step_time, 0, 1);
 
-    const iterate_animation_clip = iterate_animation(num_nodes, step_time);
-    const fade_out_animation_clip = opacity_animation('iterator_arrow', step_time, 1, 0);
-    const fade_in_animation_clip = opacity_animation('iterator_arrow', step_time, 0, 1);
+        const iterator_actions: AnimationActionRecord = {
+            'iterate': iterator_arrow_mixer.clipAction(iterate_animation_clip),
+            'fade_out': iterator_arrow_mixer.clipAction(fade_out_animation_clip),
+            'fade_in': iterator_arrow_mixer.clipAction(fade_in_animation_clip),
+        };
+        configure_actions(iterator_actions);
 
-    const iterator_actions: AnimationActionRecord = {
-        'iterate': iterator_arrow_mixer.clipAction(iterate_animation_clip),
-        'fade_out': iterator_arrow_mixer.clipAction(fade_out_animation_clip),
-        'fade_in': iterator_arrow_mixer.clipAction(fade_in_animation_clip),
-    };
-    configure_actions(iterator_actions);
+        const node_fade_in_animation_clip = opacity_animation(`${node.name}/node_group/node`, step_time, 0, 1);
 
-    const node_fade_in_animation_clip = opacity_animation(`${node.name}/node_group/node`, step_time, 0, 1);
+        const node_actions = {
+            'fade_in': node_mixer.clipAction(node_fade_in_animation_clip),
+        };
+        configure_actions(node_actions);
 
-    const node_actions = {
-        'fade_in': node_mixer.clipAction(node_fade_in_animation_clip),
-    };
-    configure_actions(node_actions);
+        const arrow_fade_in_clip = opacity_animation(".", step_time, 0, 1);
+        const arrow_actions: AnimationActionRecord = {
+            'fade_in': arrow_mixer.clipAction(arrow_fade_in_clip),
+        };
+        configure_actions(arrow_actions);
 
-    const arrow_fade_in_clip = opacity_animation(".", step_time, 0, 1);
-    const arrow_actions: AnimationActionRecord = {
-        'fade_in': arrow_mixer.clipAction(arrow_fade_in_clip),
-    };
-    configure_actions(arrow_actions);
+        const iterator_mediator = new AnimationMediator(iterator_arrow_mixer, iterator_actions,
+            ["fade_in", "iterate", "fade_out"]);
+        const node_mediator = new AnimationMediator(node_mixer, node_actions, ["fade_in"]);
+        const arrow_mediator = new AnimationMediator(arrow_mixer, arrow_actions, ["fade_in"]);
 
-    const iterator_mediator = new AnimationMediator(iterator_arrow_mixer, iterator_actions,
-        ["fade_in", "iterate", "fade_out"]);
-    const node_mediator = new AnimationMediator(node_mixer, node_actions, ["fade_in"]);
-    const arrow_mediator = new AnimationMediator(arrow_mixer, arrow_actions, ["fade_in"]);
+        iterator_mediator.on_finish = () => {
+            console.log("Iteration finish");
+            scene.remove(iterator_arrow_group);
+            mixers.pop();
+            mixers.push(node_mixer);
+            node_mediator.play();
+        };
 
-    iterator_mediator.on_finish = () => {
-        scene.remove(iterator_arrow_group);
-        node_mediator.play();
-    };
+        node_mediator.on_finish = () => {
+            console.log("Node finish");
+            mixers.pop();
+            mixers.push(arrow_mixer);
+            arrow_mediator.play();
+            (node.getObjectByName("node") as three.Mesh<three.PlaneGeometry, three.MeshBasicMaterial>).material.transparent = false;
+        };
 
-    node_mediator.on_finish = () => {
-        arrow_mediator.play();
-        (node.getObjectByName("node") as three.Mesh<three.PlaneGeometry, three.MeshBasicMaterial>).material.transparent = false;
-    };
+        arrow_mediator.on_finish = () => {
+            mixers.pop();
+            console.log("Arrow finish");
+            arrow.material.transparent = false;
+            resolve();
+        };
 
-    arrow_mediator.on_finish = () => {
-        arrow.material.transparent = false;
-    }
-
-    mixers.push(iterator_arrow_mixer);
-    mixers.push(node_mixer);
-    iterator_mediator.play();
+        mixers.push(iterator_arrow_mixer);
+        iterator_mediator.play();
+    });
 }
 
 function iterate_animation(num_nodes: number, time: number) {
+    if (num_nodes === 0) {
+        return new three.AnimationClip("Dummy", 0, []);
+    }
     let values: number[] = Array(3 * num_nodes * 2);
     let times: number[] = Array(num_nodes);
     for (let i = 0; i < num_nodes; ++i) {
@@ -164,6 +174,7 @@ function iterate_animation(num_nodes: number, time: number) {
     }
     const position_kf = new three.VectorKeyframeTrack('.position', times, values);
     const clip = new three.AnimationClip('Iterate', times[times.length - 1], [position_kf]);
+    console.log(times);
     return clip;
 }
 

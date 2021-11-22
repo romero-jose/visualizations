@@ -91,7 +91,7 @@ function animate_add_node(num_nodes: number, value: string) {
 
         // Create arrow
         const arrow = create_arrow();
-        arrow.position.set(num_nodes * OFFSET + WIDTH / 4, 0, 0);
+        arrow.position.set(num_nodes * OFFSET + WIDTH / 4, 0, 0.01);
         arrow.material.transparent = true;
         arrow.material.opacity = 0;
         scene.add(arrow);

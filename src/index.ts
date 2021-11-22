@@ -1,6 +1,7 @@
 import * as three from 'three'
 import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { AnimationAction } from 'three';
 
 const OFFSET = 10;
 const WIDTH = 6;
@@ -14,7 +15,7 @@ let scene: three.Scene,
     camera: three.PerspectiveCamera,
     renderer: three.WebGLRenderer,
     labelRenderer: CSS2DRenderer,
-    iteration_mixer: three.AnimationMixer,
+    mixers: three.AnimationMixer[],
     controls: OrbitControls;
 
 function init(): void {
@@ -36,6 +37,8 @@ function init(): void {
     camera.position.set(30, 0, 100);
     scene.add(camera);
 
+    mixers = [];
+
     controls = new OrbitControls(camera, document.getElementById('container'));
     controls.update();
 
@@ -44,59 +47,105 @@ function init(): void {
 
     controls.maxPolarAngle = Math.PI / 2;
 
-    // Geometry
-
-    const num_nodes = 10;
-
-    const arrow_group = new three.Group();
-    const iterator_arrow = create_arrow('iterator_arrow');
-    iterator_arrow.rotateZ(3 * Math.PI / 2);
-    iterator_arrow.position.set(0, OFFSET - WIDTH + WIDTH / 2 + HEIGHT / 2, 0);
-    arrow_group.add(iterator_arrow);
-
-    scene.add(arrow_group);
-
-    const nodes = create_nodes(num_nodes);
-    scene.add(nodes);
-
-    // Animation
-    const step_time = 1;
-
-    iteration_mixer = new three.AnimationMixer(arrow_group);
-
-    const iterate_animation_clip = iterate_animation(num_nodes, step_time);
-    const fade_out_animation_clip = opacity_animation(step_time, 1, 0);
-    const fade_in_animation_clip = opacity_animation(step_time, 0, 1);
-
-    const actions: Record<string, three.AnimationAction> = {
-        'iterate': iteration_mixer.clipAction(iterate_animation_clip),
-        'fade_out': iteration_mixer.clipAction(fade_out_animation_clip),
-        'fade_in': iteration_mixer.clipAction(fade_in_animation_clip),
-    };
-
-    for (let action in actions) {
-        actions[action].clampWhenFinished = true;
-        actions[action].loop = three.LoopOnce;
-    }
-
-    const sequence = ['fade_in', 'iterate', 'iterate', 'fade_out'];
-
-    const mediator = new AnimationMediator(iteration_mixer, actions, sequence);
-    mediator.play();
+    animate_add_node(1, "node 0");
+    animate_add_node(2, "node 1");
+    animate_add_node(3, "node 2");
+    animate_add_node(4, "node 3");
 
     window.addEventListener('resize', onWindowResize);
 }
 
-function create_nodes(num_nodes: number): three.Group {
-    const group = new three.Group();
+type AnimationActionRecord = Record<string, AnimationAction>
 
-    for (let i = 0; i < num_nodes; ++i) {
-        const link_object = create_link(i.toString());
-        link_object.position.set(OFFSET * i, 0, 0);
-        group.add(link_object);
+function configure_actions(actions: AnimationActionRecord) {
+    Object.keys(actions).forEach(action => {
+        actions[action].clampWhenFinished = true;
+        actions[action].loop = three.LoopOnce;
+    });
+}
+
+function animate_add_node(num_nodes: number, value: string) {
+    // Create arrow
+    const arrow_obj = create_arrow();
+    arrow_obj.position.set(WIDTH / 4, 0, 0.001);
+    scene.add(arrow_obj);
+
+    // Create iterator arrow
+    const iterator_arrow_group = new three.Group();
+    iterator_arrow_group.name = "iterator_arrow_group";
+    const iterator_arrow = create_arrow('iterator_arrow');
+    iterator_arrow.rotateZ(3 * Math.PI / 2);
+    iterator_arrow.position.set(0, OFFSET - WIDTH + WIDTH / 2 + HEIGHT / 2, 0);
+    iterator_arrow_group.add(iterator_arrow);
+    scene.add(iterator_arrow_group);
+
+    // Create node
+    const node = create_node(value, 0);
+    const new_pos = node.position.add(new three.Vector3(num_nodes * OFFSET, 0, 0));
+    node.position.set(new_pos.x, new_pos.y, new_pos.z);
+    node.name = `node_${num_nodes}`;
+    scene.add(node);
+
+    // Create arrow
+    const arrow = create_arrow();
+    arrow.position.set(num_nodes * OFFSET + WIDTH / 4, 0, 0);
+    arrow.material.transparent = true;
+    arrow.material.opacity = 0;
+    scene.add(arrow);
+
+    // Animation
+    const step_time = 1;
+
+    const iterator_arrow_mixer = new three.AnimationMixer(iterator_arrow_group);
+    const node_mixer = new three.AnimationMixer(node);
+    const arrow_mixer = new three.AnimationMixer(arrow);
+
+    const iterate_animation_clip = iterate_animation(num_nodes, step_time);
+    const fade_out_animation_clip = opacity_animation('iterator_arrow', step_time, 1, 0);
+    const fade_in_animation_clip = opacity_animation('iterator_arrow', step_time, 0, 1);
+
+    const iterator_actions: AnimationActionRecord = {
+        'iterate': iterator_arrow_mixer.clipAction(iterate_animation_clip),
+        'fade_out': iterator_arrow_mixer.clipAction(fade_out_animation_clip),
+        'fade_in': iterator_arrow_mixer.clipAction(fade_in_animation_clip),
+    };
+    configure_actions(iterator_actions);
+
+    const node_fade_in_animation_clip = opacity_animation(`${node.name}/node_group/node`, step_time, 0, 1);
+
+    const node_actions = {
+        'fade_in': node_mixer.clipAction(node_fade_in_animation_clip),
+    };
+    configure_actions(node_actions);
+
+    const arrow_fade_in_clip = opacity_animation(".", step_time, 0, 1);
+    const arrow_actions: AnimationActionRecord = {
+        'fade_in': arrow_mixer.clipAction(arrow_fade_in_clip),
+    };
+    configure_actions(arrow_actions);
+
+    const iterator_mediator = new AnimationMediator(iterator_arrow_mixer, iterator_actions,
+        ["fade_in", "iterate", "fade_out"]);
+    const node_mediator = new AnimationMediator(node_mixer, node_actions, ["fade_in"]);
+    const arrow_mediator = new AnimationMediator(arrow_mixer, arrow_actions, ["fade_in"]);
+
+    iterator_mediator.on_finish = () => {
+        scene.remove(iterator_arrow_group);
+        node_mediator.play();
+    };
+
+    node_mediator.on_finish = () => {
+        arrow_mediator.play();
+        (node.getObjectByName("node") as three.Mesh<three.PlaneGeometry, three.MeshBasicMaterial>).material.transparent = false;
+    };
+
+    arrow_mediator.on_finish = () => {
+        arrow.material.transparent = false;
     }
 
-    return group;
+    mixers.push(iterator_arrow_mixer);
+    mixers.push(node_mixer);
+    iterator_mediator.play();
 }
 
 function iterate_animation(num_nodes: number, time: number) {
@@ -117,10 +166,10 @@ function iterate_animation(num_nodes: number, time: number) {
     return clip;
 }
 
-function opacity_animation(time: number, inital_opacity: number = 0, final_opacity: number = 1) {
+function opacity_animation(target: string, time: number, inital_opacity: number = 0, final_opacity: number = 1) {
     const values = [inital_opacity, final_opacity];
     const times = [0, time];
-    const opacity_kf = new three.NumberKeyframeTrack('iterator_arrow.material.opacity', times, values);
+    const opacity_kf = new three.NumberKeyframeTrack(`${target}.material.opacity`, times, values);
     const clip = new three.AnimationClip('Dissapear', time, [opacity_kf]);
     return clip;
 }
@@ -134,23 +183,26 @@ function create_link(value: string): three.Group {
     return link;
 }
 
-function create_node(value: string): three.Group {
+function create_node(value: string, opacity: number = 1): three.Group {
     const group = new three.Group();
+    group.name = "node_group";
 
     const geometry = new three.PlaneGeometry(WIDTH, HEIGHT);
-    const material = new three.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1 });
+    const material = new three.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: opacity });
     const node = new three.Mesh(geometry, material);
     node.position.set(0, 0, 0);
+    node.name = "node";
     group.add(node);
 
     const nodeDiv = document.createElement('div');
     nodeDiv.className = 'label';
     nodeDiv.textContent = value;
     nodeDiv.style.marginTop = '0em';
-    nodeDiv.style.fontSize = '3em';
+    nodeDiv.style.fontSize = '2em';
     nodeDiv.style.fontFamily = 'Source Sans Pro';
     const nodeLabel = new CSS2DObject(nodeDiv);
     nodeLabel.position.set(0, 0, 0);
+    nodeLabel.name = "nodeLabel";
     group.add(nodeLabel);
     document.getElementById('container').appendChild(nodeDiv);
 
@@ -209,26 +261,32 @@ function animate() {
 
 function render() {
     const delta = clock.getDelta();
-    if (iteration_mixer) {
-        iteration_mixer.update(delta);
-    }
+    mixers.forEach(mixer => {
+        mixer.update(delta);
+    });
     renderer.render(scene, camera);
     labelRenderer.render(scene, camera);
 }
+
+type AnimationCallback = () => void;
 
 class AnimationMediator {
     mixer: three.AnimationMixer;
     actions: Record<string, three.AnimationAction>;
     sequence: string[];
     current_action: number;
+    on_finish: AnimationCallback;
 
-    constructor(mixer: three.AnimationMixer, actions: Record<string, three.AnimationAction>, sequence: string[]) {
+    constructor(mixer: three.AnimationMixer, actions: Record<string, three.AnimationAction>, sequence: string[], on_finish: AnimationCallback = () => { }) {
         this.mixer = mixer;
         this.actions = actions;
         this.sequence = sequence;
         this.current_action = 0;
+        this.on_finish = on_finish;
 
-        this.mixer.addEventListener('finished', (/* event */) => this.on_finish());
+        this.mixer.addEventListener('finished', (/* event */) => {
+            this.on_clip_finish()
+        });
     }
 
     register_action(name: string, action: three.AnimationAction) {
@@ -240,8 +298,11 @@ class AnimationMediator {
         this.sequence.push(name);
     }
 
-    on_finish() {
-        if (this.current_action === this.sequence.length - 1) return;
+    on_clip_finish() {
+        if (this.current_action === this.sequence.length - 1) {
+            this.on_finish();
+            return;
+        }
         const action = this.get_current_action();
         action.reset();
         this.current_action++;

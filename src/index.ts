@@ -49,10 +49,14 @@ function init(): void {
     controls.enableRotate = false;
     controls.enableDamping = false;
 
-    animate_add_node(0, "node 0")
-        .then(() => animate_add_node(1, "node 1"))
-        .then(() => animate_add_node(2, "node 2"))
-        .then(() => animate_add_node(3, "node 3"));
+    animate_add_node(0, "0")
+        .then(() => animate_add_node(1, "1"))
+        .then(() => animate_add_node(2, "2"))
+        .then(() => animate_add_node(3, "3"))
+        .then(() => animate_add_node(4, "4"))
+        .then(() => animate_add_node(5, "5"))
+        .then(() => animate_add_node(6, "6"))
+        ;
 
     window.addEventListener('resize', onWindowResize);
 }
@@ -124,7 +128,7 @@ function animate_add_node(num_nodes: number, value: string) {
         configure_actions(arrow_actions);
 
         const iterator_mediator = new AnimationMediator(iterator_arrow_mixer, iterator_actions,
-            ["fade_in", "iterate", "fade_out"]);
+            ["fade_in", "iterate"]);
         const node_mediator = new AnimationMediator(node_mixer, node_actions, ["fade_in"]);
         const arrow_mediator = new AnimationMediator(arrow_mixer, arrow_actions, ["fade_in"]);
 
@@ -158,7 +162,7 @@ function animate_add_node(num_nodes: number, value: string) {
 
 function iterate_animation(num_nodes: number, time: number) {
     if (num_nodes === 0) {
-        return new three.AnimationClip("Dummy", 0, []);
+        return new three.AnimationClip("Dummy", 1, []);
     }
     let values: number[] = Array(3 * num_nodes * 2);
     let times: number[] = Array(num_nodes);

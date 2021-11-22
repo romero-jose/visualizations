@@ -34,7 +34,7 @@ function init(): void {
     scene.background = new three.Color(0x050505);
 
     camera = new three.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 5000);
-    camera.position.set(30, 0, 100);
+    camera.position.set(0, 0, 100);
     scene.add(camera);
 
     mixers = [];
@@ -44,8 +44,9 @@ function init(): void {
 
     controls.minDistance = 1;
     controls.maxDistance = 1000;
-
     controls.maxPolarAngle = Math.PI / 2;
+    controls.enableRotate = false;
+    controls.enableDamping = false;
 
     animate_add_node(1, "node 0");
     animate_add_node(2, "node 1");

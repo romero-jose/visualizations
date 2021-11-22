@@ -128,7 +128,7 @@ function animate_add_node(num_nodes: number, value: string) {
         configure_actions(arrow_actions);
 
         const iterator_mediator = new AnimationMediator(iterator_arrow_mixer, iterator_actions,
-            ["fade_in", "iterate"]);
+            ["fade_in", "iterate", "fade_out"]);
         const node_mediator = new AnimationMediator(node_mixer, node_actions, ["fade_in"]);
         const arrow_mediator = new AnimationMediator(arrow_mixer, arrow_actions, ["fade_in"]);
 
@@ -155,6 +155,7 @@ function animate_add_node(num_nodes: number, value: string) {
             resolve();
         };
 
+        console.log("Iteration start");
         mixers.push(iterator_arrow_mixer);
         iterator_mediator.play();
     });
@@ -311,9 +312,9 @@ class AnimationMediator {
             return;
         }
         const action = this.get_current_action();
-        action.reset();
         this.current_action++;
         const current_action = this.get_current_action();
+        current_action.reset();
         current_action.setLoop(three.LoopOnce, 1);
         current_action.play();
     }

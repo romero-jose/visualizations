@@ -190,15 +190,6 @@ function opacity_animation(target: string, time: number, inital_opacity: number 
     return clip;
 }
 
-function create_link(value: string): three.Group {
-    const link = new three.Group();
-    link.add(create_node(value));
-    const arrow_obj = create_arrow();
-    arrow_obj.position.set(WIDTH / 4, 0, 0.001);
-    link.add(arrow_obj);
-    return link;
-}
-
 function create_node(value: string, opacity: number = 1): three.Group {
     const group = new three.Group();
     group.name = "node_group";

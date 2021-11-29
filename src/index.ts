@@ -2,7 +2,6 @@ import * as three from 'three'
 import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { AnimationAction } from 'three';
-import { resolve } from '../webpack.config';
 
 const OFFSET = 10;
 const WIDTH = 6;
@@ -49,7 +48,7 @@ function init(): void {
     controls.enableRotate = false;
     controls.enableDamping = false;
 
-    animate_add_node(0, "0")
+    animate_add_node(0, "nodo 0")
         .then(() => animate_add_node(1, "1"))
         .then(() => animate_add_node(2, "2"))
         .then(() => animate_add_node(3, "3"))
